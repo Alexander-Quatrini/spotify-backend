@@ -1,7 +1,7 @@
 import config
 import requests
 import base64
-from flask import Flask, redirect, request
+from flask import Flask, redirect, request, make_response
 from flask_cors import CORS;
 from urllib.parse import urlencode
 
@@ -43,9 +43,7 @@ def create_app():
     @app.route('/api/getlibrary')
     def getSpotifyLibrary():
         header = request.headers.get('Authorization')
-        print(header)
         response = requests.get("https://api.spotify.com/v1/me/tracks", headers={'Authorization': header})
-        print(response.json())
         if (response.status_code == 401):
             refresh = request_refresh(request.cookies['accessToken'])
             
@@ -57,7 +55,6 @@ def create_app():
     def getUserInfo():
         header = request.headers.get('Authorization')
         response = requests.get("https://api.spotify.com/v1/me", headers={'Authorization': header})
-        print(response.json())
 
         return response.json()
     
@@ -65,10 +62,24 @@ def create_app():
     def getQueue():
         header = request.headers.get('Authorization')
         response = requests.get("https://api.spotify.com/v1/me/player/queue", headers={'Authorization': header})
-        print(response.json())
-        
+
         return response.json()
     
+    @app.route('/api/getLibrarySlice')
+    def getLibrarySlice():
+        header = request.headers.get('Authorization')
+        offset = request.args.get('offset', None)
+        limit = request.args.get('limit', 50)
+        if(offset == None):
+            err = make_response('Invalid Request')
+            err.status_code = 403
+            return err
+        
+        response = requests.get("https://api.spotify.com/v1/me/tracks", params={'offset': offset, 'limit': limit}, headers= {'Authorization': header})
+        print(response)
+        return response.json()
+
+
     return app
 
 def request_refresh(access_token):
