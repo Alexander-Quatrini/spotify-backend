@@ -78,7 +78,18 @@ def create_app():
         response = requests.get("https://api.spotify.com/v1/me/tracks", params={'offset': offset, 'limit': limit}, headers= {'Authorization': header})
         print(response)
         return response.json()
+    
+    @app.route('/api/getAudioFeatures')
+    def getAudioFeatures():
+        header = request.headers.get('Authorization')
+        response = requests.get("https://api.spotify.com/v1/audio-features/", headers={'Authorization': header})
 
+    @app.route('/api/getCurrentlyPlaying')
+    def getCurrentlyPlaying():
+        header = request.headers.get('Authorization')
+        response = requests.get("https://api.spotify.com/v1/me/player/currently-playing", headers={'Authorization': header})
+
+        return response.json()
 
     return app
 
