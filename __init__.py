@@ -80,14 +80,23 @@ def getFromSpotifyAPI(path, req, parameters=None):
     if (response.ok):
         return response.json()
     else:
-        errorHandle(response.status_code, header.split()[1])
+        return errorHandle(response.status_code, header.split()[1])
 
-def errorHandle(status, access_token):
+def errorHandle(status, access_token, path):
     match status:
         case 401:
             accessToken = request_refresh(access_token)
+            
+            if(accessToken != None):
+                return make_response('Refreshed access token', 201)
+            
+            return make_response('Expired access token, refresh failed', 401)
         case 403:
-            err = make_response('Malformed access token', 500)
+            return make_response('Malformed access token', 500)
+        case 429:
+            return make_response('Rate limit exceeded', 429)
+        case _:
+            return make_response('Unknown error response from Spotify', 400)
 
 
 def request_refresh(access_token):
