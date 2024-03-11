@@ -42,60 +42,56 @@ def create_app():
 
     @app.route('/api/getlibrary')
     def getSpotifyLibrary():
-        header = request.headers.get('Authorization')
-        response = requests.get("https://api.spotify.com/v1/me/tracks", headers={'Authorization': header})
-        if (response.status_code == 401):
-            refresh = request_refresh(request.cookies['accessToken'])
-            
-            if(refresh == None):
-                return redirect('http://localhost:5000/login')  
-        return response.json()
+        return getFromSpotifyAPI("https://api.spotify.com/v1/me/tracks", request)
         
     @app.route('/api/getuserinfo')
     def getUserInfo():
-        header = request.headers.get('Authorization')
-        response = requests.get("https://api.spotify.com/v1/me", headers={'Authorization': header})
-
-        return response.json()
+        return getFromSpotifyAPI("https://api.spotify.com/v1/me", request)
     
     @app.route('/api/getqueue')
     def getQueue():
-        header = request.headers.get('Authorization')
-        response = requests.get("https://api.spotify.com/v1/me/player/queue", headers={'Authorization': header})
-
-        return response.json()
+        return getFromSpotifyAPI("https://api.spotify.com/v1/me/player/queue", request)
     
     @app.route('/api/getLibrarySlice')
     def getLibrarySlice():
-        header = request.headers.get('Authorization')
+
         offset = request.args.get('offset', None)
         limit = request.args.get('limit', 50)
         if(offset == None):
-            err = make_response('Invalid Request')
-            err.status_code = 403
+            err = make_response('Invalid Request', 400)
             return err
         
-        response = requests.get("https://api.spotify.com/v1/me/tracks", params={'offset': offset, 'limit': limit}, headers= {'Authorization': header})
-        print(response)
-        return response.json()
+        return getFromSpotifyAPI("https://api.spotify.com/v1/me/tracks", request, parameters={'offset': offset, 'limit': limit})
     
     @app.route('/api/getAudioFeatures')
     def getAudioFeatures():
-        header = request.headers.get('Authorization')
-        response = requests.get("https://api.spotify.com/v1/audio-features/", headers={'Authorization': header})
+        return getFromSpotifyAPI("https://api.spotify.com/v1/audio-features/", request)
 
     @app.route('/api/getCurrentlyPlaying')
     def getCurrentlyPlaying():
-        header = request.headers.get('Authorization')
-        response = requests.get("https://api.spotify.com/v1/me/player/currently-playing", headers={'Authorization': header})
-
-        return response.json()
+        return getFromSpotifyAPI("https://api.spotify.com/v1/me/player/currently-playing", request)
 
     return app
 
+def getFromSpotifyAPI(path, req, parameters=None):
+    header = req.headers.get('Authorization')        
+    response = requests.get(path, params=parameters, headers={'Authorization': header})
+
+    if (response.ok):
+        return response.json()
+    else:
+        errorHandle(response.status_code, header.split()[1])
+
+def errorHandle(status, access_token):
+    match status:
+        case 401:
+            accessToken = request_refresh(access_token)
+        case 403:
+            err = make_response('Malformed access token', 500)
+
+
 def request_refresh(access_token):
     if not (access_token in accessList):
-        accessList.pop(access_token)
         return None
     
     refreshTokenParams = dict(grant_type = 'refresh_token', refresh_token = accessList.get(access_token))
@@ -103,13 +99,11 @@ def request_refresh(access_token):
 
     response = requests.post('https://accounts.spotify.com/api/token', params=refreshTokenParams, headers=refreshTokenHeaders)
 
-    if(response.status_code == 401):
+    if (not response.ok):
         return None
     
-    if(response.status_code == 200):
+    else:
         accessToken = response.json()['access_token']
         refresh_token = response.json()['refresh_token']
         accessList.update(accessToken, refresh_token)
         return accessToken
-    else:
-        return None
